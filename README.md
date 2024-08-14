@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# How to use
+## Create new wallet
 
-## Getting Started
+There are 2 way to create new wallet
 
-First, run the development server:
+First you need to visit solana playground: [beta.solpg.io](https://beta.solpg.io/)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Then select connect to devnet on bottom left of website
+![](backend/tutorial/01.png)
+
+Then you can create an account direct on top right menu
+![](backend/tutorial/02.png)
+
+Another way is better but not recommend for noob, you need to download Phantom extension and sign up an account. Then you can create many wallet as you want, but to use this wallet in devnet solana, you need to first connect in solana playground
+![](backend/tutorial/03.png)
+
+## How to start server API
+
+First of all you need python > 3.10 and pip
+
+### Windows
+```
+./install.bat
+./run.bat
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Linux
+```
+cd blockchain\client
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+python -m venv venv
+venv\Scripts\activate
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+pip install -r requirements.txt
 
-## Learn More
+python main.py
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Document API
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+When server start at port 8000 then visit [http://localhost:8000/docs](http://localhost:8000/docs) for document of API
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+## Account are using for fee payer
 
-## Deploy on Vercel
+you can change fee payer in `blockchain\client\config.py`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## How to get private key of wallet
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+For solana wallet you can get private key by get keypair from export function on top right menu then using convert pair function on docs api of server to get private key of account
+
+For Phantom wallet is must easier, just go to setting on extension then click to account you want to get private key, then take the private key
+
+![](backend/tutorial/04.png)
+
+## How to check on chain
+
+For check account info you can see at `https://explorer.solana.com/address/{public_address}?cluster=devnet`
+
+For check Instruction info you can see at `https://explorer.solana.com/tx/{public_address}?cluster=devnet`
+
+For example:
+- [https://explorer.solana.com/address/CqNsnnTNyCsoVrTtNdiFZegK2eJSARXrXwvyzYGBcYi2?cluster=devnet](https://explorer.solana.com/address/CqNsnnTNyCsoVrTtNdiFZegK2eJSARXrXwvyzYGBcYi2?cluster=devnet)
+- [https://explorer.solana.com/tx/2zeiZyYjhbriiGcfPNXz8YTt4qtB3X7BqE1zocxrLwpTGRgHTuqBuFb4dW2ZXNq467ptM5xWNWJTfaEv3GxwQV5J?cluster=devnet](https://explorer.solana.com/tx/2zeiZyYjhbriiGcfPNXz8YTt4qtB3X7BqE1zocxrLwpTGRgHTuqBuFb4dW2ZXNq467ptM5xWNWJTfaEv3GxwQV5J?cluster=devnet)
