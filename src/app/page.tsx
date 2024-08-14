@@ -1,113 +1,200 @@
-import Image from "next/image";
+"use client";
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  GetOwnerCertificateDataType,
+  getOwnerCertificateData,
+  CertificateType,
+} from "@/schemas/form";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
+import { useState } from "react";
+import { FaSpinner } from "react-icons/fa";
+import { GetCertificatesByOwner } from "@/action/certificate";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import Link from "next/link";
 
 export default function Home() {
+  const [certsData, setCertsData] = useState<
+    { data: CertificateType; certificate_public_key: string }[]
+  >([]);
+  const form = useForm<GetOwnerCertificateDataType>({
+    resolver: zodResolver(getOwnerCertificateData),
+    defaultValues: {
+      owner_public_key: "",
+    },
+  });
+
+  async function onHandleSubmit(values: GetOwnerCertificateDataType) {
+    try {
+      const certs = await GetCertificatesByOwner(values.owner_public_key);
+
+      const certsDataArray = await Promise.all(
+        certs.map(async (cert) => {
+          const url = new URL("http://localhost:8000/get-certificate-data");
+
+          // Add query parameters
+          url.searchParams.append("cert_public_key", cert.certPublicKey);
+
+          const response = await fetch(url.toString(), {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            return {
+              data: data.data,
+              certificate_public_key: cert.certPublicKey,
+            };
+          } else {
+            const errorData = await response.json();
+            toast({
+              title: "Error",
+              description: `Failed to retrieve certificate data: ${
+                errorData.detail || "Unknown error"
+              }`,
+              variant: "destructive",
+            });
+            return null;
+          }
+        })
+      );
+
+      // Lọc bỏ những giá trị null trong mảng kết quả và cập nhật state
+      const filteredCertsData = certsDataArray.filter((cert) => cert !== null);
+      setCertsData(
+        filteredCertsData as {
+          data: CertificateType;
+          certificate_public_key: string;
+        }[]
+      );
+    } catch (error) {
+      toast({
+        title: "Network Error",
+        description: "Request failed. Please check your network connection.",
+        variant: "destructive",
+      });
+    }
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="w-full h-full flex flex-col items-center justify-center py-4">
+      <div className="w-full h-fit flex flex-col items-center">
+        <div className="text-4xl font-bold">Get Your Certificate</div>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onHandleSubmit)}
+            className="space-y-4 w-2/3 flex py-10"
           >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+            <div className="w-3/4">
+              <FormField
+                control={form.control}
+                name="owner_public_key"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Your Public Key:</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Enter Your Public Key"
+                        className="outline-none"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="w-1/4">
+              <Button
+                type="submit"
+                disabled={form.formState.isSubmitting}
+                className="w-full mt-4"
+              >
+                {!form.formState.isSubmitting && (
+                  <span>Get Certificate Data</span>
+                )}
+                {form.formState.isSubmitting && (
+                  <FaSpinner className="animate-spin" />
+                )}
+              </Button>
+            </div>
+          </form>
+        </Form>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {certsData.map(({ data, certificate_public_key }) => {
+            console.log({ data, certificate_public_key });
+            return (
+              <CertCard
+                key={certificate_public_key}
+                cert={data}
+                certificate_public_key={certificate_public_key}
+              />
+            );
+          })}
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+function CertCard({
+  cert,
+  certificate_public_key,
+}: {
+  cert: CertificateType;
+  certificate_public_key: string;
+}) {
+  return (
+    <Card className="flex flex-col h-full">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 justify-between">
+          <span className="truncate font-bold">{cert.fullname}</span>
+        </CardTitle>
+        <CardDescription className="text-muted-foreground text-sm">
+          Serial ID: <span>{cert.serial_id}</span>
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex-1 truncate text-sm text-muted-foreground">
+        <div className="text-sm font-medium text-muted-foreground">
+          Sender: <span>{cert.sender}</span>
+        </div>
+        <div className="text-sm font-medium text-muted-foreground">
+          Birthday: {cert.birthday.day}/{cert.birthday.month}/
+          {cert.birthday.year}
+        </div>
+        <div className="text-sm font-medium text-muted-foreground">
+          Delivery Date: {cert.delivery_date.day}/{cert.delivery_date.month}/
+          {cert.delivery_date.year}
+        </div>
+      </CardContent>
+      <CardFooter className="mt-auto">
+        <Button asChild className="w-full mt-2 text-md gap-4">
+          <Link href={`/get-certificate/${certificate_public_key}`}>
+            View Certificate
+          </Link>
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }
